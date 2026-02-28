@@ -1,0 +1,10 @@
+node_modules
+.svelte-kit
+build
+dist
+.git
+.gitignore
+.worktrees
+data/*.db
+.env
+npm-debug.log*

@@ -1,57 +1,115 @@
-# sv
+# Family Budget
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+Family Budget is a shared household budgeting app for two or more family members.
+It supports monthly planning, recurring items, approvals per member, equalization
+between members, and reporting/statistics over time.
 
-## Creating a project
+## What the app does
 
-If you're seeing this, you've probably already done this step. Congrats!
+- Shared family budgets per month
+- Income/expense items with tags
+- Recurring templates copied into new months
+- Member approval flow per month
+- Equalization in two modes (`equal` and `proportional`)
+- Monthly summary + historical statistics
+- Invite flow for joining a family
+- Reminder cron endpoint for unapproved upcoming budgets
+- Swedish/English UI, plus theme/accent settings
 
-```sh
-# create a new project
-npx sv create my-app
+## Tech stack
+
+- SvelteKit + Svelte 5
+- Tailwind CSS + shadcn-svelte UI components
+- SQLite (`better-sqlite3`) + Drizzle ORM
+- Paraglide i18n (inlang)
+- Resend for invite/reminder email delivery
+
+## Development setup
+
+### 1) Install dependencies
+
+```bash
+npm install --legacy-peer-deps
 ```
 
-To recreate this project with the same configuration:
+### 2) Configure environment
 
-```sh
-# recreate this project
-npx sv create --template minimal --types ts --no-install .
+```bash
+cp .env.example .env
 ```
 
-## Developing
+Update `.env` as needed:
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+- `DATABASE_URL` - SQLite file path (default `./data/budget.db`)
+- `RESEND_API_KEY` - Resend API key
+- `CRON_SECRET` - secret key for cron endpoint
+- `BASE_URL` - app base URL
+- `NODE_ENV` - `development` or `production`
 
-```sh
+### 3) Generate i18n runtime
+
+```bash
+npx @inlang/paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide
+```
+
+### 4) Initialize database schema
+
+```bash
+npx drizzle-kit push
+```
+
+### 5) Run the app
+
+```bash
 npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
 ```
 
-## Building
+## Useful development commands
 
-To create a production version of your app:
-
-```sh
+```bash
+npm run check
 npm run build
+npm run preview
+npx drizzle-kit studio
 ```
 
-You can preview the production build with `npm run preview`.
+## Deploy (Coolify, automated)
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+This repo is set up for automated deployment on Coolify via `docker-compose.yml`.
 
-## Reminder Cron Job
+### What is automated
 
-Use the reminder endpoint to notify members with unapproved budgets for the upcoming month.
+- App container build and startup
+- SQLite persistence (`budget_data` volume mounted to `/app/data`)
+- Drizzle migration on container start (`node migrate.mjs`)
+- Reminder cron job in a sidecar service (`cron`)
 
-```sh
-# Production cron example (runs at 09:00 daily)
-0 9 * * * curl -s "https://yourapp.com/api/cron/reminders?key=YOUR_CRON_SECRET"
+### Coolify setup steps
+
+1. Create a new **Docker Compose** resource in Coolify.
+2. Point it to this repository and select `docker-compose.yml`.
+3. Set environment variables in Coolify:
+   - `BASE_URL=https://your-domain.com`
+   - `CRON_SECRET=<strong-random-secret>`
+   - `RESEND_API_KEY=<resend-api-key>`
+4. Expose the `app` service on your domain (container port `3000`).
+5. Deploy.
+
+### Important notes
+
+- Session cookies automatically use `secure: true` in production over HTTPS.
+- The app expects a single writer for SQLite. Run one `app` replica.
+- If `RESEND_API_KEY` is missing/placeholder in development, email sending is skipped.
+- In production, missing/placeholder `RESEND_API_KEY` makes email sending fail loudly.
+
+### Manual reminder endpoint test
+
+```bash
+curl "https://your-domain.com/api/cron/reminders?key=YOUR_CRON_SECRET"
 ```
 
-Manual local test:
+For local development:
 
-```sh
+```bash
 curl "http://localhost:5173/api/cron/reminders?key=your_cron_secret"
 ```
