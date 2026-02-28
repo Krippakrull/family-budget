@@ -1,0 +1,9 @@
+{
+	"$schema": "https://inlang.com/schema/inlang-message-format",
+	"app_name": "Familjebudget",
+	"nav_budget": "Budget",
+	"nav_recurring": "Återkommande",
+	"nav_statistics": "Statistik",
+	"nav_settings": "Inställningar",
+	"nav_family": "Familj"
+}
