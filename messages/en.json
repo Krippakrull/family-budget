@@ -22,6 +22,8 @@
 	"passwords_dont_match": "Passwords do not match",
 	"email_already_registered": "Email is already registered",
 	"invalid_credentials": "Invalid email or password",
+	"invalid_current_password": "Invalid current password",
+	"name_required": "Name is required",
 	"email_and_password_required": "Email and password are required",
 	"income": "Income",
 	"expenses": "Expenses",

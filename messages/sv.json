@@ -22,6 +22,8 @@
 	"passwords_dont_match": "Lösenorden matchar inte",
 	"email_already_registered": "E-postadressen är redan registrerad",
 	"invalid_credentials": "Felaktig e-post eller lösenord",
+	"invalid_current_password": "Felaktigt nuvarande lösenord",
+	"name_required": "Namn krävs",
 	"email_and_password_required": "E-post och lösenord krävs",
 	"income": "Inkomster",
 	"expenses": "Utgifter",
