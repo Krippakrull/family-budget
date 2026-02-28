@@ -22,11 +22,14 @@
 		items: BudgetItem[];
 	};
 
-	let { member, currentUserId, familyTags } = $props<{
+	let { member, currentUserId, familyTags, currentLanguage } = $props<{
 		member: MemberBlock;
 		currentUserId: string;
 		familyTags: Tag[];
+		currentLanguage: 'sv' | 'en';
 	}>();
+
+	const amountPlaceholder = $derived(currentLanguage === 'sv' ? '0,00' : '0.00');
 
 	const canEdit = $derived(member.user.id === currentUserId && !member.memberBudget.approved);
 	const incomes = $derived.by(() => member.items.filter((item: BudgetItem) => item.type === 'income'));
@@ -56,7 +59,7 @@
 					<input type="hidden" name="memberBudgetId" value={member.memberBudget.id} />
 					<input type="hidden" name="type" value="income" />
 					<Input name="name" placeholder={m.add_income()} required />
-					<Input name="amount" type="number" step="1" placeholder="0" required />
+					<Input name="amount" type="text" inputmode="decimal" placeholder={amountPlaceholder} required />
 					<Button type="submit" size="sm">{m.add_income()}</Button>
 				</form>
 
@@ -64,7 +67,7 @@
 					<input type="hidden" name="memberBudgetId" value={member.memberBudget.id} />
 					<input type="hidden" name="type" value="expense" />
 					<Input name="name" placeholder={m.add_expense()} required />
-					<Input name="amount" type="number" step="1" placeholder="0" required />
+					<Input name="amount" type="text" inputmode="decimal" placeholder={amountPlaceholder} required />
 					<Button type="submit" size="sm" variant="secondary">{m.add_expense()}</Button>
 				</form>
 			</div>
@@ -72,7 +75,7 @@
 
 		<div class="space-y-2">
 			{#each member.items as item}
-				<BudgetItemRow {item} editable={canEdit} {familyTags} />
+				<BudgetItemRow {item} editable={canEdit} {familyTags} {currentLanguage} />
 			{/each}
 			{#if member.items.length === 0}
 				<p class="text-sm text-muted-foreground">No items yet.</p>

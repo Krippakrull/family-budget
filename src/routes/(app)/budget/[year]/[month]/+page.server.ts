@@ -2,6 +2,7 @@ import { fail } from '@sveltejs/kit';
 import { and, eq } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import type { Actions, PageServerLoad } from './$types';
+import { parseCurrencyInput } from '$lib/currency.js';
 import { copyFromMonth, createMonthFromScratch, getOrCreateMonthlyBudget, loadBudgetData } from '$lib/server/budget';
 import { db } from '$lib/server/db';
 import {
@@ -49,7 +50,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		equalizationMode: family?.equalizationMode ?? 'equal',
 		year,
 		month,
-		currentUserId: user.id
+		currentUserId: user.id,
+		currentLanguage: user.language
 	};
 };
 
@@ -89,10 +91,10 @@ export const actions: Actions = {
 		const data = await request.formData();
 		const memberBudgetId = data.get('memberBudgetId')?.toString();
 		const name = data.get('name')?.toString()?.trim();
-		const amount = Number.parseInt(data.get('amount')?.toString() ?? '', 10);
+		const amount = parseCurrencyInput(data.get('amount')?.toString() ?? '', user.language);
 		const type = data.get('type')?.toString();
 
-		if (!memberBudgetId || !name || Number.isNaN(amount) || (type !== 'income' && type !== 'expense')) {
+		if (!memberBudgetId || !name || amount === null || (type !== 'income' && type !== 'expense')) {
 			return fail(400, { error: 'invalid_item' });
 		}
 
@@ -123,9 +125,9 @@ export const actions: Actions = {
 		const data = await request.formData();
 		const itemId = data.get('itemId')?.toString();
 		const name = data.get('name')?.toString()?.trim();
-		const amount = Number.parseInt(data.get('amount')?.toString() ?? '', 10);
+		const amount = parseCurrencyInput(data.get('amount')?.toString() ?? '', user.language);
 
-		if (!itemId || !name || Number.isNaN(amount)) return fail(400, { error: 'invalid_item' });
+		if (!itemId || !name || amount === null) return fail(400, { error: 'invalid_item' });
 
 		const item = db
 			.select()

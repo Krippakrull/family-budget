@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { formatCurrencyInputValue } from '$lib/currency.js';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
@@ -7,6 +8,7 @@
 	import * as m from '$lib/paraglide/messages.js';
 
 	let { data } = $props();
+	const amountPlaceholder = $derived(data.currentLanguage === 'sv' ? '0,00' : '0.00');
 
 	const incomes = $derived(data.templates.filter((t) => t.type === 'income'));
 	const expenses = $derived(data.templates.filter((t) => t.type === 'expense'));
@@ -26,7 +28,13 @@
 						<form method="POST" action="?/update" use:enhance class="grid gap-2 md:grid-cols-[1fr_120px_auto]">
 							<input type="hidden" name="id" value={template.id} />
 							<Input name="name" value={template.name} required />
-							<Input name="amount" type="number" step="1" value={template.amount} required />
+							<Input
+								name="amount"
+								type="text"
+								inputmode="decimal"
+								value={formatCurrencyInputValue(template.amount, data.currentLanguage)}
+								required
+							/>
 							<Button type="submit" size="sm">{m.save()}</Button>
 						</form>
 
@@ -64,7 +72,7 @@
 				<form method="POST" action="?/add" use:enhance class="space-y-2 rounded-md border p-3">
 					<input type="hidden" name="type" value="income" />
 					<Input name="name" placeholder={m.add_income()} required />
-					<Input name="amount" type="number" step="1" placeholder="0" required />
+					<Input name="amount" type="text" inputmode="decimal" placeholder={amountPlaceholder} required />
 					<Button type="submit">{m.add_income()}</Button>
 				</form>
 			</CardContent>
@@ -80,7 +88,13 @@
 						<form method="POST" action="?/update" use:enhance class="grid gap-2 md:grid-cols-[1fr_120px_auto]">
 							<input type="hidden" name="id" value={template.id} />
 							<Input name="name" value={template.name} required />
-							<Input name="amount" type="number" step="1" value={template.amount} required />
+							<Input
+								name="amount"
+								type="text"
+								inputmode="decimal"
+								value={formatCurrencyInputValue(template.amount, data.currentLanguage)}
+								required
+							/>
 							<Button type="submit" size="sm">{m.save()}</Button>
 						</form>
 
@@ -118,7 +132,7 @@
 				<form method="POST" action="?/add" use:enhance class="space-y-2 rounded-md border p-3">
 					<input type="hidden" name="type" value="expense" />
 					<Input name="name" placeholder={m.add_expense()} required />
-					<Input name="amount" type="number" step="1" placeholder="0" required />
+					<Input name="amount" type="text" inputmode="decimal" placeholder={amountPlaceholder} required />
 					<Button type="submit" variant="secondary">{m.add_expense()}</Button>
 				</form>
 			</CardContent>

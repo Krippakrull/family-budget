@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { formatCurrencyInputValue } from '$lib/currency.js';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -18,10 +19,11 @@
 
 	type FamilyTag = { id: string; name: string };
 
-	let { item, editable, familyTags } = $props<{
+	let { item, editable, familyTags, currentLanguage } = $props<{
 		item: BudgetItem;
 		editable: boolean;
 		familyTags: FamilyTag[];
+		currentLanguage: 'sv' | 'en';
 	}>();
 
 	function formatOren(value: number): string {
@@ -43,7 +45,13 @@
 		<form method="POST" action="?/updateItem" use:enhance class="grid grid-cols-1 gap-2 md:grid-cols-[1fr_140px_auto]">
 			<input type="hidden" name="itemId" value={item.id} />
 			<Input name="name" value={item.name} required />
-			<Input name="amount" type="number" step="1" value={item.amount} required />
+			<Input
+				name="amount"
+				type="text"
+				inputmode="decimal"
+				value={formatCurrencyInputValue(item.amount, currentLanguage)}
+				required
+			/>
 			<Button type="submit" size="sm">{m.save()}</Button>
 		</form>
 

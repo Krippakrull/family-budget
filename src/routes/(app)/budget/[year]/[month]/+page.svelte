@@ -128,7 +128,12 @@
 	{:else}
 		<div class="grid gap-6 md:grid-cols-2">
 			{#each data.members as member}
-				<BudgetCard {member} currentUserId={data.currentUserId ?? ''} familyTags={data.familyTags ?? []} />
+				<BudgetCard
+					{member}
+					currentUserId={data.currentUserId ?? ''}
+					familyTags={data.familyTags ?? []}
+					currentLanguage={data.currentLanguage ?? 'sv'}
+				/>
 			{/each}
 		</div>
 

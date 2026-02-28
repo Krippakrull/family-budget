@@ -2,13 +2,14 @@ import { fail } from '@sveltejs/kit';
 import { and, eq } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import type { Actions, PageServerLoad } from './$types';
+import { parseCurrencyInput } from '$lib/currency.js';
 import { db } from '$lib/server/db';
 import { recurringTemplates, recurringTemplateTags, tags } from '$lib/server/db/schema';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const user = locals.user;
 	if (!user?.familyId) {
-		return { templates: [], familyTags: [] };
+		return { templates: [], familyTags: [], currentLanguage: 'sv' };
 	}
 
 	const templates = db.select().from(recurringTemplates).where(eq(recurringTemplates.userId, user.id)).all();
@@ -26,7 +27,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	const familyTags = db.select().from(tags).where(eq(tags.familyId, user.familyId)).all();
 
-	return { templates: templatesWithTags, familyTags };
+	return { templates: templatesWithTags, familyTags, currentLanguage: user.language };
 };
 
 export const actions: Actions = {
@@ -36,10 +37,10 @@ export const actions: Actions = {
 
 		const data = await request.formData();
 		const name = data.get('name')?.toString()?.trim();
-		const amount = Number.parseInt(data.get('amount')?.toString() ?? '', 10);
+		const amount = parseCurrencyInput(data.get('amount')?.toString() ?? '', user.language);
 		const type = data.get('type')?.toString();
 
-		if (!name || Number.isNaN(amount) || (type !== 'income' && type !== 'expense')) {
+		if (!name || amount === null || (type !== 'income' && type !== 'expense')) {
 			return fail(400, { error: 'invalid_template' });
 		}
 
@@ -58,9 +59,9 @@ export const actions: Actions = {
 		const data = await request.formData();
 		const id = data.get('id')?.toString();
 		const name = data.get('name')?.toString()?.trim();
-		const amount = Number.parseInt(data.get('amount')?.toString() ?? '', 10);
+		const amount = parseCurrencyInput(data.get('amount')?.toString() ?? '', user.language);
 
-		if (!id || !name || Number.isNaN(amount)) return fail(400, { error: 'invalid_template' });
+		if (!id || !name || amount === null) return fail(400, { error: 'invalid_template' });
 
 		const template = db.select().from(recurringTemplates).where(eq(recurringTemplates.id, id)).get();
 		if (!template || template.userId !== user.id) return fail(403);
