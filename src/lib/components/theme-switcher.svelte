@@ -49,7 +49,7 @@
 		<Button
 			type="button"
 			variant={theme === 'light' ? 'default' : 'outline'}
-			size="sm"
+			size="default"
 			onclick={() => persist('light', accent)}
 		>
 			{m.light()}
@@ -57,7 +57,7 @@
 		<Button
 			type="button"
 			variant={theme === 'dark' ? 'default' : 'outline'}
-			size="sm"
+			size="default"
 			onclick={() => persist('dark', accent)}
 		>
 			{m.dark()}
@@ -70,7 +70,7 @@
 			<Button
 				type="button"
 				variant="outline"
-				size="icon"
+				size="default"
 				onclick={() => persist(theme, accentOption)}
 				class={accent === accentOption ? 'border-primary' : ''}
 			>

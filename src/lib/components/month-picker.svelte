@@ -70,14 +70,14 @@
 
 <div class="space-y-2 rounded-md border p-3">
 	<div class="flex items-center justify-between gap-2">
-		<Button type="button" variant="outline" size="sm" onclick={goToPreviousMonth}>←</Button>
+		<Button type="button" variant="outline" onclick={goToPreviousMonth}>←</Button>
 		<p class="text-sm font-medium">{monthNames[current.month - 1]} {current.year}</p>
-		<Button type="button" variant="outline" size="sm" onclick={goToNextMonth}>→</Button>
+		<Button type="button" variant="outline" onclick={goToNextMonth}>→</Button>
 	</div>
 
 	<div class="grid grid-cols-2 gap-2">
 		<select
-			class="h-9 rounded-md border border-input bg-background px-2 text-sm"
+			class="h-11 rounded-md border border-input bg-background px-2 text-sm"
 			bind:value={selectedMonth}
 			onchange={jumpToSelectedMonth}
 		>
@@ -87,7 +87,7 @@
 		</select>
 
 		<select
-			class="h-9 rounded-md border border-input bg-background px-2 text-sm"
+			class="h-11 rounded-md border border-input bg-background px-2 text-sm"
 			bind:value={selectedYear}
 			onchange={jumpToSelectedMonth}
 		>

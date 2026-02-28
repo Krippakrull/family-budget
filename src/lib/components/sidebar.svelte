@@ -16,7 +16,7 @@
 		name: string;
 	} | null;
 
-	let { user, family } = $props<{ user: SidebarUser; family: SidebarFamily }>();
+	let { user, family, mobile = false } = $props<{ user: SidebarUser; family: SidebarFamily; mobile?: boolean }>();
 
 	const now = new Date();
 	const currentYear = now.getFullYear();
@@ -29,16 +29,16 @@
 	];
 </script>
 
-<aside class="flex h-full w-64 flex-col border-r bg-card p-4">
+<aside class="flex h-full flex-col bg-card p-4" class:w-64={!mobile} class:w-full={mobile} class:border-r={!mobile}>
 	<div class="mb-4">
-		<h1 class="text-lg font-semibold">{family?.name ?? m.app_name()}</h1>
+		<h1 class="line-clamp-1 text-lg font-semibold">{family?.name ?? m.app_name()}</h1>
 	</div>
 
 	<nav class="flex-1 space-y-1">
 		{#each navItems as item}
 			<a
 				href={item.href}
-				class="flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+				class="flex min-h-11 items-center rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
 				class:bg-accent={page.url.pathname.startsWith(item.match)}
 			>
 				{item.label}
@@ -52,10 +52,10 @@
 
 	<div class="space-y-2">
 		<Separator />
-		<a href="/settings" class="flex items-center rounded-md px-3 py-2 text-sm hover:bg-accent">
+		<a href="/settings" class="flex min-h-11 items-center rounded-md px-3 py-2 text-sm hover:bg-accent">
 			{m.nav_settings()}
 		</a>
-		<a href="/family" class="flex items-center rounded-md px-3 py-2 text-sm hover:bg-accent">
+		<a href="/family" class="flex min-h-11 items-center rounded-md px-3 py-2 text-sm hover:bg-accent">
 			{m.nav_family()}
 		</a>
 		<Separator />
