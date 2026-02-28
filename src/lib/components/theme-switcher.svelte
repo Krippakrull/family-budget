@@ -9,13 +9,13 @@
 	} | null;
 
 	let { user } = $props<{ user: ThemeUser }>();
-	const initialTheme = user?.theme ?? 'light';
-	const initialAccent = accents.includes(user?.accentColor as Accent)
-		? (user?.accentColor as Accent)
-		: 'blue';
+	const userTheme = $derived<Theme>(user?.theme ?? 'light');
+	const userAccent = $derived<Accent>(
+		accents.includes(user?.accentColor as Accent) ? (user?.accentColor as Accent) : 'blue'
+	);
 
-	let theme = $state<Theme>(initialTheme);
-	let accent = $state<Accent>(initialAccent);
+	let theme = $state<Theme>('light');
+	let accent = $state<Accent>('blue');
 
 	const accentClasses: Record<Accent, string> = {
 		blue: 'bg-blue-500',
@@ -25,6 +25,8 @@
 	};
 
 	$effect(() => {
+		theme = userTheme;
+		accent = userAccent;
 		applyTheme(theme, accent);
 	});
 
