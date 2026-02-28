@@ -1,9 +1,5 @@
 <script lang="ts">
-	import { Bar } from 'svelte-chartjs';
-	import { BarElement, CategoryScale, Chart, Legend, LinearScale, Tooltip, type ChartData } from 'chart.js';
 	import * as m from '$lib/paraglide/messages.js';
-
-	Chart.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
 	type MemberRow = { name: string; income: number; expenses: number };
 	type StatsRow = { memberData: MemberRow[] };
@@ -22,29 +18,31 @@
 		return Array.from(map.entries()).map(([name, totals]) => ({ name, ...totals }));
 	});
 
-	const chartData = $derived.by(
-		() =>
-			({
-				labels: aggregatedMembers.map((member) => member.name),
-				datasets: [
-					{
-						label: m.income(),
-						data: aggregatedMembers.map((member) => member.income / 100),
-						backgroundColor: '#22c55e'
-					},
-					{
-						label: m.expenses(),
-						data: aggregatedMembers.map((member) => member.expenses / 100),
-						backgroundColor: '#ef4444'
-					}
-				]
-			}) satisfies ChartData<'bar'>
-	);
+
+	const maxTotal = $derived.by(() => {
+		let max = 1;
+		for (const member of aggregatedMembers) {
+			max = Math.max(max, member.income + member.expenses);
+		}
+		return max;
+	});
+
+	function toPercent(value: number): number {
+		return Math.max(0, Math.min(100, Math.round((value / maxTotal) * 100)));
+	}
 </script>
 
-<div class="h-72">
-	<Bar
-		data={chartData}
-		options={{ responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true } } }}
-	/>
+<div class="space-y-3">
+	{#each aggregatedMembers as member}
+		<div class="space-y-1">
+			<div class="flex items-center justify-between text-xs text-muted-foreground">
+				<span>{member.name}</span>
+				<span>{m.income()} / {m.expenses()}</span>
+			</div>
+			<div class="flex h-3 w-full overflow-hidden rounded bg-secondary">
+				<div class="h-3 bg-emerald-500" style={`width: ${toPercent(member.income)}%`}></div>
+				<div class="h-3 bg-rose-500" style={`width: ${toPercent(member.expenses)}%`}></div>
+			</div>
+		</div>
+	{/each}
 </div>

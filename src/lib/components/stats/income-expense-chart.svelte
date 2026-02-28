@@ -1,47 +1,31 @@
 <script lang="ts">
-	import { Line } from 'svelte-chartjs';
-	import {
-		CategoryScale,
-		Chart,
-		Legend,
-		LineElement,
-		LinearScale,
-		PointElement,
-		Title,
-		Tooltip,
-		type ChartData
-	} from 'chart.js';
 	import * as m from '$lib/paraglide/messages.js';
-
-	Chart.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
 	type StatsRow = { year: number; month: number; totalIncome: number; totalExpenses: number };
 	let { data: monthlyData } = $props<{ data: StatsRow[] }>();
 
-	const chartData = $derived.by(
-		() =>
-			({
-				labels: monthlyData.map((row: StatsRow) => `${row.year}-${String(row.month).padStart(2, '0')}`),
-				datasets: [
-					{
-						label: m.income(),
-						data: monthlyData.map((row: StatsRow) => row.totalIncome / 100),
-						borderColor: 'hsl(var(--primary))',
-						backgroundColor: 'hsl(var(--primary))',
-						tension: 0.3
-					},
-					{
-						label: m.expenses(),
-						data: monthlyData.map((row: StatsRow) => row.totalExpenses / 100),
-						borderColor: 'hsl(var(--destructive))',
-						backgroundColor: 'hsl(var(--destructive))',
-						tension: 0.3
-					}
-				]
-			}) satisfies ChartData<'line'>
-	);
+	const maxValue = $derived.by(() => {
+		let max = 1;
+		for (const row of monthlyData) {
+			max = Math.max(max, row.totalIncome, row.totalExpenses);
+		}
+		return max;
+	});
+
+	function toPercent(value: number): number {
+		return Math.max(0, Math.min(100, Math.round((value / maxValue) * 100)));
+	}
 </script>
 
-<div class="h-72">
-	<Line data={chartData} options={{ responsive: true, maintainAspectRatio: false }} />
+<div class="space-y-3">
+	{#each monthlyData as row}
+		<div class="space-y-1">
+			<p class="text-xs text-muted-foreground">{row.year}-{String(row.month).padStart(2, '0')}</p>
+			<div class="space-y-1">
+				<div class="h-3 rounded bg-primary/20" style={`width: ${toPercent(row.totalIncome)}%`}></div>
+				<div class="h-3 rounded bg-destructive/20" style={`width: ${toPercent(row.totalExpenses)}%`}></div>
+			</div>
+			<p class="text-xs text-muted-foreground">{m.income()} / {m.expenses()}</p>
+		</div>
+	{/each}
 </div>

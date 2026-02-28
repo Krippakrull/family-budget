@@ -1,3 +1,4 @@
+import { dev } from '$app/environment';
 import { fail, redirect } from '@sveltejs/kit';
 import { and, eq, gt, isNull } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
@@ -57,7 +58,7 @@ export const actions: Actions = {
 		throw redirect(302, '/');
 	},
 
-	register: async ({ params, request, cookies }) => {
+	register: async ({ params, request, cookies, url }) => {
 		const data = await request.formData();
 		const email = data.get('email')?.toString()?.toLowerCase();
 		const name = data.get('name')?.toString()?.trim();
@@ -90,11 +91,12 @@ export const actions: Actions = {
 		db.update(familyInvites).set({ usedAt: now }).where(eq(familyInvites.id, invite.id)).run();
 
 		const { token, expiresAt } = createSession(user.id);
+		const secureCookie = !dev && (url.protocol === 'https:' || request.headers.get('x-forwarded-proto') === 'https');
 		cookies.set('session', token, {
 			path: '/',
 			httpOnly: true,
 			sameSite: 'lax',
-			secure: false,
+			secure: secureCookie,
 			expires: expiresAt
 		});
 

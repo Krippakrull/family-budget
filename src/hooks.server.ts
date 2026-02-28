@@ -1,3 +1,4 @@
+import { dev } from '$app/environment';
 import type { Handle } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import { i18n } from '$lib/i18n';
@@ -19,6 +20,9 @@ const authHandle: Handle = async ({ event, resolve }) => {
 			event.locals.user = null;
 			event.locals.session = null;
 		} else {
+			const secureCookie =
+				!dev && (event.url.protocol === 'https:' || event.request.headers.get('x-forwarded-proto') === 'https');
+
 			event.locals.user = result.user;
 			event.locals.session = result.session;
 
@@ -26,7 +30,7 @@ const authHandle: Handle = async ({ event, resolve }) => {
 				path: '/',
 				httpOnly: true,
 				sameSite: 'lax',
-				secure: false,
+				secure: secureCookie,
 				expires: result.session.expiresAt
 			});
 		}

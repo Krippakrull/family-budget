@@ -1,9 +1,5 @@
 <script lang="ts">
-	import { Bar } from 'svelte-chartjs';
-	import { BarElement, CategoryScale, Chart, Legend, LinearScale, Tooltip, type ChartData } from 'chart.js';
 	import * as m from '$lib/paraglide/messages.js';
-
-	Chart.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
 	type StatsRow = { tagTotals: Record<string, number> };
 	let { data: monthlyData } = $props<{ data: StatsRow[] }>();
@@ -18,24 +14,34 @@
 		return totals;
 	});
 
-	const chartData = $derived.by(() => {
-		const rows = (Object.entries(aggregatedTagTotals) as Array<[string, number]>).sort((a, b) => b[1] - a[1]);
-		return {
-			labels: rows.map(([tag]) => tag),
-			datasets: [
-				{
-					label: m.spending_by_tag(),
-					data: rows.map(([, amount]) => amount / 100),
-					backgroundColor: '#f97316'
-				}
-			]
-		} satisfies ChartData<'bar'>;
+	const rows = $derived.by(() =>
+		(Object.entries(aggregatedTagTotals) as Array<[string, number]>).sort((a, b) => b[1] - a[1])
+	);
+
+	const maxValue = $derived.by(() => {
+		let max = 1;
+		for (const [, amount] of rows) {
+			max = Math.max(max, amount);
+		}
+		return max;
 	});
+
+	function toPercent(value: number): number {
+		return Math.max(0, Math.min(100, Math.round((value / maxValue) * 100)));
+	}
 </script>
 
-<div class="h-72">
-	<Bar
-		data={chartData}
-		options={{ responsive: true, maintainAspectRatio: false, indexAxis: 'y' as const }}
-	/>
+<div class="space-y-3">
+	{#each rows as [tag, amount]}
+		<div class="space-y-1">
+			<div class="flex items-center justify-between text-xs text-muted-foreground">
+				<span>{tag}</span>
+				<span>{(amount / 100).toFixed(2)}</span>
+			</div>
+			<div class="h-3 rounded bg-secondary">
+				<div class="h-3 rounded bg-orange-500" style={`width: ${toPercent(amount)}%`}></div>
+			</div>
+		</div>
+	{/each}
+	<p class="text-xs text-muted-foreground">{m.spending_by_tag()}</p>
 </div>

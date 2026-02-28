@@ -1,3 +1,4 @@
+import { dev } from '$app/environment';
 import { fail, redirect } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
@@ -12,7 +13,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-	default: async ({ request, cookies }) => {
+	default: async ({ request, cookies, url }) => {
 		const data = await request.formData();
 		const email = data.get('email')?.toString()?.toLowerCase();
 		const name = data.get('name')?.toString()?.trim();
@@ -40,12 +41,13 @@ export const actions: Actions = {
 		const user = createUser(email, name, passwordHash);
 
 		const { token, expiresAt } = createSession(user.id);
+		const secureCookie = !dev && (url.protocol === 'https:' || request.headers.get('x-forwarded-proto') === 'https');
 
 		cookies.set('session', token, {
 			path: '/',
 			httpOnly: true,
 			sameSite: 'lax',
-			secure: false,
+			secure: secureCookie,
 			expires: expiresAt
 		});
 

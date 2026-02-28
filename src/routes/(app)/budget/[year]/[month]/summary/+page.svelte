@@ -1,20 +1,7 @@
 <script lang="ts">
-	import { Bar, Pie } from 'svelte-chartjs';
-	import {
-		ArcElement,
-		BarElement,
-		CategoryScale,
-		Chart,
-		Legend,
-		LinearScale,
-		Tooltip,
-		type ChartData
-	} from 'chart.js';
 	import { Button } from '$lib/components/ui/button';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import * as m from '$lib/paraglide/messages.js';
-
-	Chart.register(ArcElement, BarElement, CategoryScale, LinearScale, Legend, Tooltip);
 
 	let { data } = $props();
 
@@ -29,38 +16,25 @@
 		}));
 	});
 
-	const expenseByTagChartData = $derived.by(() => {
-		const rows = tagRows.filter((row) => row.expenses > 0);
-		return {
-			labels: rows.map((row) => row.name),
-			datasets: [
-				{
-					label: m.expenses(),
-					data: rows.map((row) => row.expenses / 100),
-					backgroundColor: ['#3b82f6', '#16a34a', '#f59e0b', '#a855f7', '#ef4444', '#14b8a6']
-				}
-			]
-		} satisfies ChartData<'pie'>;
+	const maxTagExpense = $derived.by(() => {
+		let max = 1;
+		for (const row of tagRows) {
+			max = Math.max(max, row.expenses);
+		}
+		return max;
 	});
 
-	const memberBreakdownChartData = $derived.by(() => {
-		const members = data.summary?.byMember ?? [];
-		return {
-			labels: members.map((member) => member.name),
-			datasets: [
-				{
-					label: m.income(),
-					data: members.map((member) => member.income / 100),
-					backgroundColor: '#16a34a'
-				},
-				{
-					label: m.expenses(),
-					data: members.map((member) => member.expenses / 100),
-					backgroundColor: '#ef4444'
-				}
-			]
-		} satisfies ChartData<'bar'>;
+	const maxMemberTotal = $derived.by(() => {
+		let max = 1;
+		for (const member of data.summary?.byMember ?? []) {
+			max = Math.max(max, member.income + member.expenses);
+		}
+		return max;
 	});
+
+	function barWidth(value: number, max: number): number {
+		return Math.max(0, Math.min(100, Math.round((value / max) * 100)));
+	}
 
 	function formatOren(value: number): string {
 		return new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK' }).format(value / 100);
@@ -102,8 +76,21 @@
 			<Card>
 				<CardHeader><CardTitle>{m.spending_by_tag()}</CardTitle></CardHeader>
 				<CardContent class="space-y-4">
-					<div class="h-64">
-						<Pie data={expenseByTagChartData} options={{ responsive: true, maintainAspectRatio: false }} />
+					<div class="space-y-2">
+						{#each tagRows as row}
+							<div class="space-y-1">
+								<div class="flex items-center justify-between text-xs text-muted-foreground">
+									<span>{row.name}</span>
+									<span>{formatOren(row.expenses)}</span>
+								</div>
+								<div class="h-3 rounded bg-secondary">
+									<div
+										class="h-3 rounded bg-orange-500"
+										style={`width: ${barWidth(row.expenses, maxTagExpense)}%`}
+									></div>
+								</div>
+							</div>
+						{/each}
 					</div>
 					<div class="overflow-x-auto">
 						<table class="w-full text-sm">
@@ -131,11 +118,22 @@
 			<Card>
 				<CardHeader><CardTitle>{m.per_member()}</CardTitle></CardHeader>
 				<CardContent class="space-y-4">
-					<div class="h-64">
-						<Bar
-							data={memberBreakdownChartData}
-							options={{ responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true } } }}
-						/>
+					<div class="space-y-2">
+						{#each data.summary.byMember as member}
+							<div class="space-y-1">
+								<p class="text-xs text-muted-foreground">{member.name}</p>
+								<div class="flex h-3 w-full overflow-hidden rounded bg-secondary">
+									<div
+										class="h-3 bg-emerald-500"
+										style={`width: ${barWidth(member.income, maxMemberTotal)}%`}
+									></div>
+									<div
+										class="h-3 bg-rose-500"
+										style={`width: ${barWidth(member.expenses, maxMemberTotal)}%`}
+									></div>
+								</div>
+							</div>
+						{/each}
 					</div>
 					<div class="overflow-x-auto">
 						<table class="w-full text-sm">
