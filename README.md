@@ -40,3 +40,18 @@ npm run build
 You can preview the production build with `npm run preview`.
 
 > To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+
+## Reminder Cron Job
+
+Use the reminder endpoint to notify members with unapproved budgets for the upcoming month.
+
+```sh
+# Production cron example (runs at 09:00 daily)
+0 9 * * * curl -s "https://yourapp.com/api/cron/reminders?key=YOUR_CRON_SECRET"
+```
+
+Manual local test:
+
+```sh
+curl "http://localhost:5173/api/cron/reminders?key=your_cron_secret"
+```
