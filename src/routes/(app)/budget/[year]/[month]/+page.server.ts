@@ -7,6 +7,7 @@ import { db } from '$lib/server/db';
 import {
 	budgetItems,
 	budgetItemTags,
+	families,
 	memberBudgets,
 	monthlyBudgets,
 	recurringTemplates,
@@ -40,10 +41,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 	const data = loadBudgetData(budget.id);
 	const familyTags = db.select().from(tags).where(eq(tags.familyId, user.familyId)).all();
+	const family = db.select().from(families).where(eq(families.id, user.familyId)).get();
 
 	return {
 		...data,
 		familyTags,
+		equalizationMode: family?.equalizationMode ?? 'equal',
 		year,
 		month,
 		currentUserId: user.id

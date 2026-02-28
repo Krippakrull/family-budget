@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import { enhance } from '$app/forms';
 	import BudgetCard from '$lib/components/budget-card.svelte';
+	import EqualizationPanel from '$lib/components/equalization-panel.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import * as m from '$lib/paraglide/messages.js';
@@ -39,6 +40,28 @@
 		}
 
 		return { income, expenses, remaining: income - expenses };
+	});
+
+	const memberBalances = $derived.by(() => {
+		if (!data.members) return [];
+
+		return data.members.map((member) => {
+			let totalIncome = 0;
+			let totalExpenses = 0;
+
+			for (const item of member.items) {
+				if (item.type === 'income') totalIncome += item.amount;
+				else totalExpenses += item.amount;
+			}
+
+			return {
+				userId: member.user.id,
+				name: member.user.name,
+				totalIncome,
+				totalExpenses,
+				remainder: totalIncome - totalExpenses
+			};
+		});
 	});
 
 	function formatOren(value: number): string {
@@ -119,5 +142,7 @@
 				<p class="font-medium">{m.total_remaining()}: {formatOren(totals.remaining)}</p>
 			</CardContent>
 		</Card>
+
+		<EqualizationPanel members={memberBalances} mode={data.equalizationMode ?? 'equal'} />
 	{/if}
 </div>
