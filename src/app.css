@@ -73,6 +73,26 @@
   --sidebar-ring: oklch(0.551 0.027 264.364);
 }
 
+:root[data-accent="blue"] {
+	--primary: oklch(0.546 0.245 262.881);
+	--primary-foreground: oklch(0.985 0.001 106.423);
+}
+
+:root[data-accent="green"] {
+	--primary: oklch(0.627 0.194 149.214);
+	--primary-foreground: oklch(0.985 0.001 106.423);
+}
+
+:root[data-accent="purple"] {
+	--primary: oklch(0.541 0.281 293.009);
+	--primary-foreground: oklch(0.985 0.001 106.423);
+}
+
+:root[data-accent="amber"] {
+	--primary: oklch(0.769 0.188 70.08);
+	--primary-foreground: oklch(0.216 0.006 56.043);
+}
+
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
