@@ -69,3 +69,53 @@ export async function sendReminderEmail(
 
 	await sendEmail({ to, subject, html: body });
 }
+
+const monthNames = {
+	sv: ['Januari', 'Februari', 'Mars', 'April', 'Maj', 'Juni', 'Juli', 'Augusti', 'September', 'Oktober', 'November', 'December'],
+	en: [
+		'January',
+		'February',
+		'March',
+		'April',
+		'May',
+		'June',
+		'July',
+		'August',
+		'September',
+		'October',
+		'November',
+		'December'
+	]
+} as const;
+
+export async function sendApprovalSummaryEmail(
+	to: string,
+	name: string,
+	familyName: string,
+	month: number,
+	year: number,
+	totalIncome: number,
+	totalExpenses: number,
+	summaryUrl: string,
+	language: 'sv' | 'en'
+): Promise<void> {
+	const monthName = monthNames[language][month - 1] ?? `${month}`;
+	const locale = language === 'sv' ? 'sv-SE' : 'en-US';
+	const formattedIncome = new Intl.NumberFormat(locale, { style: 'currency', currency: 'SEK' }).format(totalIncome / 100);
+	const formattedExpenses = new Intl.NumberFormat(locale, { style: 'currency', currency: 'SEK' }).format(totalExpenses / 100);
+	const formattedRemaining = new Intl.NumberFormat(locale, { style: 'currency', currency: 'SEK' }).format(
+		(totalIncome - totalExpenses) / 100
+	);
+
+	const subject =
+		language === 'sv'
+			? `Budgetsammanfattning för ${monthName} ${year}`
+			: `Budget summary for ${monthName} ${year}`;
+
+	const body =
+		language === 'sv'
+			? `<p>Hej ${name}!</p><p>Alla i ${familyName} har nu godkänt budgeten för ${monthName} ${year}.</p><p>Inkomster: ${formattedIncome}<br/>Utgifter: ${formattedExpenses}<br/>Kvar: ${formattedRemaining}</p><p><a href="${summaryUrl}">Öppna sammanfattning</a></p>`
+			: `<p>Hi ${name}!</p><p>Everyone in ${familyName} has now approved the budget for ${monthName} ${year}.</p><p>Income: ${formattedIncome}<br/>Expenses: ${formattedExpenses}<br/>Remaining: ${formattedRemaining}</p><p><a href="${summaryUrl}">Open summary</a></p>`;
+
+	await sendEmail({ to, subject, html: body });
+}

@@ -53,6 +53,38 @@
 					</select>
 					<Button type="submit" size="sm">{m.save()}</Button>
 				</form>
+
+				<form method="POST" action="?/updateNotificationSettings" use:enhance class="space-y-3 rounded-md border p-3">
+					<p class="text-sm font-medium">{m.notification_settings()}</p>
+					<div class="space-y-2">
+						<Label for="reminderDay">{m.reminder_day()}</Label>
+						<Input
+							id="reminderDay"
+							name="reminderDay"
+							type="number"
+							min="1"
+							max="28"
+							value={data.family.reminderDay}
+							required
+						/>
+						<p class="text-xs text-muted-foreground">{m.reminder_day_help()}</p>
+					</div>
+
+					<label class="flex items-center gap-2 text-sm">
+						<input
+							type="checkbox"
+							name="sendApprovalSummary"
+							checked={data.family.sendApprovalSummary}
+						/>
+						<span>{m.send_approval_summary()}</span>
+					</label>
+
+					<Button type="submit" size="sm">{m.save()}</Button>
+				</form>
+
+				{#if form && 'notificationSettingsUpdated' in form && form.notificationSettingsUpdated}
+					<p class="text-sm text-green-600">{m.settings_saved()}</p>
+				{/if}
 			</CardContent>
 		</Card>
 

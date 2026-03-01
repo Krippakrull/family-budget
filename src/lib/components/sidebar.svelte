@@ -4,7 +4,6 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Separator } from '$lib/components/ui/separator';
 	import MonthPicker from './month-picker.svelte';
-	import ThemeSwitcher from './theme-switcher.svelte';
 
 	type SidebarUser = {
 		name: string;
@@ -65,8 +64,5 @@
 				<Button variant="ghost" size="sm" type="submit">{m.logout()}</Button>
 			</form>
 		</div>
-		{#if !mobile}
-			<ThemeSwitcher user={user} />
-		{/if}
 	</div>
 </aside>

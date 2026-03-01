@@ -6,6 +6,8 @@ export const families = sqliteTable('families', {
 	equalizationMode: text('equalization_mode', { enum: ['equal', 'proportional'] })
 		.notNull()
 		.default('equal'),
+	reminderDay: integer('reminder_day').notNull().default(27),
+	sendApprovalSummary: integer('send_approval_summary', { mode: 'boolean' }).notNull().default(false),
 	createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 	updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull()
 });
@@ -159,4 +161,18 @@ export const reminderLogs = sqliteTable(
 		sentAt: integer('sent_at', { mode: 'timestamp' }).notNull()
 	},
 	(table) => [uniqueIndex('reminder_logs_user_year_month').on(table.userId, table.year, table.month)]
+);
+
+export const approvalSummaryLogs = sqliteTable(
+	'approval_summary_logs',
+	{
+		id: text('id').primaryKey(),
+		familyId: text('family_id')
+			.notNull()
+			.references(() => families.id),
+		year: integer('year').notNull(),
+		month: integer('month').notNull(),
+		sentAt: integer('sent_at', { mode: 'timestamp' }).notNull()
+	},
+	(table) => [uniqueIndex('approval_summary_logs_family_year_month').on(table.familyId, table.year, table.month)]
 );

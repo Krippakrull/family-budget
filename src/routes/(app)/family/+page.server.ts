@@ -150,5 +150,27 @@ export const actions: Actions = {
 			.run();
 
 		return { success: true };
+	},
+
+	updateNotificationSettings: async ({ request, locals }) => {
+		const user = locals.user;
+		if (!user) return fail(401);
+		if (!user.familyId) return fail(400, { error: 'no_family' });
+
+		const data = await request.formData();
+		const reminderDayRaw = data.get('reminderDay')?.toString();
+		const reminderDay = Number.parseInt(reminderDayRaw ?? '', 10);
+		if (Number.isNaN(reminderDay) || reminderDay < 1 || reminderDay > 28) {
+			return fail(400, { error: 'invalid_reminder_day' });
+		}
+
+		const sendApprovalSummary = data.has('sendApprovalSummary');
+
+		db.update(families)
+			.set({ reminderDay, sendApprovalSummary, updatedAt: new Date() })
+			.where(eq(families.id, user.familyId))
+			.run();
+
+		return { notificationSettingsUpdated: true };
 	}
 };

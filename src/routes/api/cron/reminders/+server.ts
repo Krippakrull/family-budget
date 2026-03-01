@@ -32,9 +32,6 @@ export const GET: RequestHandler = async ({ url }) => {
 	}
 
 	const now = new Date();
-	if (now.getDate() < 26) {
-		return json({ message: 'Not yet the 26th', sent: 0 });
-	}
 
 	let nextMonth = now.getMonth() + 2;
 	let nextYear = now.getFullYear();
@@ -47,6 +44,10 @@ export const GET: RequestHandler = async ({ url }) => {
 	let sent = 0;
 
 	for (const family of allFamilies) {
+		if (now.getDate() < family.reminderDay) {
+			continue;
+		}
+
 		const members = db.select().from(users).where(eq(users.familyId, family.id)).all();
 
 		const budget = db

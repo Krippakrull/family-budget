@@ -73,12 +73,27 @@
 			</div>
 		{/if}
 
-		<div class="space-y-2">
-			{#each member.items as item}
-				<BudgetItemRow {item} editable={canEdit} {familyTags} {currentLanguage} />
-			{/each}
+		<div class="space-y-3">
 			{#if member.items.length === 0}
 				<p class="text-sm text-muted-foreground">No items yet.</p>
+			{:else}
+				{#if incomes.length > 0}
+					<div class="space-y-2">
+						<p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">{m.income()}</p>
+						{#each incomes as item}
+							<BudgetItemRow {item} editable={canEdit} {familyTags} {currentLanguage} />
+						{/each}
+					</div>
+				{/if}
+
+				{#if expenses.length > 0}
+					<div class="space-y-2">
+						<p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">{m.expenses()}</p>
+						{#each expenses as item}
+							<BudgetItemRow {item} editable={canEdit} {familyTags} {currentLanguage} />
+						{/each}
+					</div>
+				{/if}
 			{/if}
 		</div>
 

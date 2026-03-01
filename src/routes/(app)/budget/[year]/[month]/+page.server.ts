@@ -1,3 +1,4 @@
+import { env } from '$env/dynamic/private';
 import { fail } from '@sveltejs/kit';
 import { and, eq } from 'drizzle-orm';
 import { ulid } from 'ulid';
@@ -5,7 +6,9 @@ import type { Actions, PageServerLoad } from './$types';
 import { parseCurrencyInput } from '$lib/currency.js';
 import { copyFromMonth, createMonthFromScratch, getOrCreateMonthlyBudget, loadBudgetData } from '$lib/server/budget';
 import { db } from '$lib/server/db';
+import { sendApprovalSummaryEmail } from '$lib/server/email';
 import {
+	approvalSummaryLogs,
 	budgetItems,
 	budgetItemTags,
 	families,
@@ -13,7 +16,8 @@ import {
 	monthlyBudgets,
 	recurringTemplates,
 	recurringTemplateTags,
-	tags
+	tags,
+	users
 } from '$lib/server/db/schema';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -181,6 +185,110 @@ export const actions: Actions = {
 			.set({ approved: nextApproved, approvedAt: nextApproved ? new Date() : null })
 			.where(eq(memberBudgets.id, memberBudgetId))
 			.run();
+
+		if (nextApproved && user.familyId) {
+			const monthlyBudget = db
+				.select({
+					id: monthlyBudgets.id,
+					familyId: monthlyBudgets.familyId,
+					year: monthlyBudgets.year,
+					month: monthlyBudgets.month
+				})
+				.from(monthlyBudgets)
+				.where(eq(monthlyBudgets.id, memberBudget.monthlyBudgetId))
+				.get();
+
+			if (monthlyBudget && monthlyBudget.familyId === user.familyId) {
+				const family = db
+					.select({ id: families.id, name: families.name, sendApprovalSummary: families.sendApprovalSummary })
+					.from(families)
+					.where(eq(families.id, monthlyBudget.familyId))
+					.get();
+
+				if (family?.sendApprovalSummary) {
+					const familyMembers = db
+						.select({ id: users.id, email: users.email, name: users.name, language: users.language })
+						.from(users)
+						.where(eq(users.familyId, monthlyBudget.familyId))
+						.all();
+
+					if (familyMembers.length > 1) {
+						const alreadySent = db
+							.select({ id: approvalSummaryLogs.id })
+							.from(approvalSummaryLogs)
+							.where(
+								and(
+									eq(approvalSummaryLogs.familyId, monthlyBudget.familyId),
+									eq(approvalSummaryLogs.year, monthlyBudget.year),
+									eq(approvalSummaryLogs.month, monthlyBudget.month)
+								)
+							)
+							.get();
+
+						if (!alreadySent) {
+							const approvals = db
+								.select({ approved: memberBudgets.approved })
+								.from(memberBudgets)
+								.where(eq(memberBudgets.monthlyBudgetId, monthlyBudget.id))
+								.all();
+
+							const allApproved = approvals.length > 0 && approvals.every((row) => row.approved);
+
+							if (allApproved) {
+								const itemRows = db
+									.select({ amount: budgetItems.amount, type: budgetItems.type })
+									.from(budgetItems)
+									.innerJoin(memberBudgets, eq(budgetItems.memberBudgetId, memberBudgets.id))
+									.where(eq(memberBudgets.monthlyBudgetId, monthlyBudget.id))
+									.all();
+
+								let totalIncome = 0;
+								let totalExpenses = 0;
+								for (const row of itemRows) {
+									if (row.type === 'income') totalIncome += row.amount;
+									else totalExpenses += row.amount;
+								}
+
+								const baseUrl = env.BASE_URL || 'http://localhost:5173';
+								const summaryUrl = `${baseUrl}/budget/${monthlyBudget.year}/${monthlyBudget.month}/summary`;
+
+								let allEmailsSent = true;
+								for (const member of familyMembers) {
+									try {
+										await sendApprovalSummaryEmail(
+											member.email,
+											member.name,
+											family.name,
+											monthlyBudget.month,
+											monthlyBudget.year,
+											totalIncome,
+											totalExpenses,
+											summaryUrl,
+											member.language as 'sv' | 'en'
+										);
+									} catch (error) {
+										allEmailsSent = false;
+										console.error(`Failed to send approval summary to ${member.email}:`, error);
+									}
+								}
+
+								if (allEmailsSent) {
+									db.insert(approvalSummaryLogs)
+										.values({
+											id: ulid(),
+											familyId: monthlyBudget.familyId,
+											year: monthlyBudget.year,
+											month: monthlyBudget.month,
+											sentAt: new Date()
+										})
+										.run();
+								}
+							}
+						}
+					}
+				}
+			}
+		}
 
 		return { success: true };
 	},
