@@ -22,6 +22,17 @@ export function getOrCreateMonthlyBudget(familyId: string, year: number, month: 
 	return budget ?? null;
 }
 
+export function ensureMemberBudget(userId: string, monthlyBudgetId: string): void {
+	db.insert(memberBudgets)
+		.values({
+			id: ulid(),
+			monthlyBudgetId,
+			userId
+		})
+		.onConflictDoNothing()
+		.run();
+}
+
 export function createMonthFromScratch(familyId: string, year: number, month: number): string {
 	const now = new Date();
 	const budgetId = ulid();
