@@ -101,6 +101,16 @@ export const actions: Actions = {
 		const now = new Date();
 		db.update(familyInvites).set({ usedAt: now }).where(eq(familyInvites.id, invite.id)).run();
 
+		const currentDate = new Date();
+		const currentBudget = getOrCreateMonthlyBudget(
+			invite.familyId,
+			currentDate.getFullYear(),
+			currentDate.getMonth() + 1
+		);
+		if (currentBudget) {
+			ensureMemberBudget(user.id, currentBudget.id);
+		}
+
 		const { token, expiresAt } = createSession(user.id);
 		const secureCookie = !dev && (url.protocol === 'https:' || request.headers.get('x-forwarded-proto') === 'https');
 		cookies.set('session', token, {
