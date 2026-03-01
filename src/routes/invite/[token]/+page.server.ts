@@ -5,6 +5,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { createSession, createUser, hashPassword } from '$lib/server/auth';
 import { db } from '$lib/server/db';
 import { families, familyInvites, users } from '$lib/server/db/schema';
+import { ensureMemberBudget, getOrCreateMonthlyBudget } from '$lib/server/budget';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const invite = db
@@ -54,6 +55,16 @@ export const actions: Actions = {
 		const now = new Date();
 		db.update(users).set({ familyId: invite.familyId, updatedAt: now }).where(eq(users.id, user.id)).run();
 		db.update(familyInvites).set({ usedAt: now }).where(eq(familyInvites.id, invite.id)).run();
+
+		const currentDate = new Date();
+		const currentBudget = getOrCreateMonthlyBudget(
+			invite.familyId,
+			currentDate.getFullYear(),
+			currentDate.getMonth() + 1
+		);
+		if (currentBudget) {
+			ensureMemberBudget(user.id, currentBudget.id);
+		}
 
 		throw redirect(302, '/');
 	},
