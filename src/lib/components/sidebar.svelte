@@ -65,6 +65,8 @@
 				<Button variant="ghost" size="sm" type="submit">{m.logout()}</Button>
 			</form>
 		</div>
-		<ThemeSwitcher user={user} />
+		{#if !mobile}
+			<ThemeSwitcher user={user} />
+		{/if}
 	</div>
 </aside>

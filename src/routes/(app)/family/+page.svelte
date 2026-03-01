@@ -70,11 +70,21 @@
 					<p class="text-sm text-green-600">{m.invite_sent()}</p>
 				{/if}
 
+				{#if form && 'inviteResent' in form && form.inviteResent}
+					<p class="text-sm text-green-600">{m.invite_resent()}</p>
+				{/if}
+
 				{#if data.pendingInvites.length > 0}
 					<div class="space-y-2">
-						<p class="text-sm font-medium">Pending invites</p>
+						<p class="text-sm font-medium">{m.pending_invites()}</p>
 						{#each data.pendingInvites as invite}
-							<div class="rounded-md border p-2 text-sm text-muted-foreground">{invite.email}</div>
+							<div class="flex items-center justify-between gap-3 rounded-md border p-2 text-sm text-muted-foreground">
+								<span class="truncate">{invite.email}</span>
+								<form method="POST" action="?/resendInvite" use:enhance>
+									<input type="hidden" name="inviteId" value={invite.id} />
+									<Button type="submit" size="sm" variant="outline">{m.resend()}</Button>
+								</form>
+							</div>
 						{/each}
 					</div>
 				{/if}

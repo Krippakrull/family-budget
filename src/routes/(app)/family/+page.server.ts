@@ -7,6 +7,14 @@ import { sendInviteEmail } from '$lib/server/email';
 import { db } from '$lib/server/db';
 import { families, familyInvites, users } from '$lib/server/db/schema';
 
+function createInviteToken(): string {
+	return crypto.randomBytes(32).toString('base64url');
+}
+
+function createInviteExpiry(baseDate: Date): Date {
+	return new Date(baseDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+}
+
 export const load: PageServerLoad = async ({ locals }) => {
 	const user = locals.user;
 	if (!user) {
@@ -24,7 +32,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		.where(eq(users.familyId, user.familyId))
 		.all();
 	const pendingInvites = db
-		.select()
+		.select({ id: familyInvites.id, email: familyInvites.email, expiresAt: familyInvites.expiresAt })
 		.from(familyInvites)
 		.where(
 			and(
@@ -70,9 +78,9 @@ export const actions: Actions = {
 		const family = db.select().from(families).where(eq(families.id, user.familyId)).get();
 		if (!family) return fail(400, { error: 'no_family' });
 
-		const token = crypto.randomBytes(32).toString('base64url');
 		const now = new Date();
-		const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+		const token = createInviteToken();
+		const expiresAt = createInviteExpiry(now);
 
 		db.insert(familyInvites)
 			.values({
@@ -89,6 +97,42 @@ export const actions: Actions = {
 		await sendInviteEmail(email, user.name, family.name, token, user.language);
 
 		return { inviteSent: true };
+	},
+
+	resendInvite: async ({ request, locals }) => {
+		const user = locals.user;
+		if (!user) return fail(401);
+		if (!user.familyId) return fail(400, { error: 'no_family' });
+
+		const data = await request.formData();
+		const inviteId = data.get('inviteId')?.toString();
+		if (!inviteId) return fail(400, { error: 'invite_id_required' });
+
+		const family = db.select().from(families).where(eq(families.id, user.familyId)).get();
+		if (!family) return fail(400, { error: 'no_family' });
+
+		const invite = db
+			.select({ id: familyInvites.id, email: familyInvites.email, token: familyInvites.token })
+			.from(familyInvites)
+			.where(
+				and(
+					eq(familyInvites.id, inviteId),
+					eq(familyInvites.familyId, user.familyId),
+					isNull(familyInvites.usedAt),
+					gt(familyInvites.expiresAt, new Date())
+				)
+			)
+			.get();
+
+		if (!invite) return fail(404, { error: 'invite_not_found' });
+
+		const now = new Date();
+		const expiresAt = createInviteExpiry(now);
+		await sendInviteEmail(invite.email, user.name, family.name, invite.token, user.language);
+
+		db.update(familyInvites).set({ expiresAt }).where(eq(familyInvites.id, invite.id)).run();
+
+		return { inviteResent: true };
 	},
 
 	updateEqualizationMode: async ({ request, locals }) => {

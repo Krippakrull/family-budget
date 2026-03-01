@@ -42,6 +42,7 @@ Update `.env` as needed:
 
 - `DATABASE_URL` - SQLite file path (default `./data/budget.db`)
 - `RESEND_API_KEY` - Resend API key
+- `MAIL_FROM_DOMAIN` - sender domain for emails (for example `mail.kunnvit.com`)
 - `CRON_SECRET` - secret key for cron endpoint
 - `BASE_URL` - app base URL
 - `NODE_ENV` - `development` or `production`
@@ -92,6 +93,7 @@ This repo is set up for automated deployment on Coolify via `docker-compose.yml`
    - `BASE_URL=https://your-domain.com`
    - `CRON_SECRET=<strong-random-secret>`
    - `RESEND_API_KEY=<resend-api-key>`
+   - `MAIL_FROM_DOMAIN=mail.your-domain.com`
 4. Expose the `app` service on your domain (container port `3000`).
 5. Deploy.
 
@@ -101,6 +103,7 @@ This repo is set up for automated deployment on Coolify via `docker-compose.yml`
 - The app expects a single writer for SQLite. Run one `app` replica.
 - If `RESEND_API_KEY` is missing/placeholder in development, email sending is skipped.
 - In production, missing/placeholder `RESEND_API_KEY` makes email sending fail loudly.
+- In production, missing/placeholder `MAIL_FROM_DOMAIN` makes email sending fail loudly.
 
 ### Manual reminder endpoint test
 

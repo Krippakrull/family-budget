@@ -1,5 +1,6 @@
 import { env } from '$env/dynamic/private';
 import { Resend } from 'resend';
+import { getMailFromAddress } from './email-from.js';
 
 const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
 const isPlaceholderKey =
@@ -20,7 +21,7 @@ async function sendEmail(payload: { to: string; subject: string; html: string })
 	}
 
 	await resend.emails.send({
-		from: 'Family Budget <noreply@yourdomain.com>',
+		from: getMailFromAddress(env),
 		...payload
 	});
 }
