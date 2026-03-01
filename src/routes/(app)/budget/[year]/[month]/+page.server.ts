@@ -4,7 +4,7 @@ import { and, eq } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import type { Actions, PageServerLoad } from './$types';
 import { parseCurrencyInput } from '$lib/currency.js';
-import { copyFromMonth, createMonthFromScratch, getOrCreateMonthlyBudget, loadBudgetData } from '$lib/server/budget';
+import { copyFromMonth, createMonthFromScratch, ensureMemberBudget, getOrCreateMonthlyBudget, loadBudgetData } from '$lib/server/budget';
 import { db } from '$lib/server/db';
 import { sendApprovalSummaryEmail } from '$lib/server/email';
 import {
@@ -44,6 +44,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		return { budget: null, needsSetup: true, availableMonths, year, month };
 	}
 
+	ensureMemberBudget(user.id, budget.id);
 	const data = loadBudgetData(budget.id);
 	const familyTags = db.select().from(tags).where(eq(tags.familyId, user.familyId)).all();
 	const family = db.select().from(families).where(eq(families.id, user.familyId)).get();
