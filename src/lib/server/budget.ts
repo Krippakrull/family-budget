@@ -164,6 +164,98 @@ export function copyFromMonth(
 	return targetBudgetId;
 }
 
+export function replaceFromMonth(
+	targetBudgetId: string,
+	sourceYear: number,
+	sourceMonth: number,
+	familyId: string,
+	userId: string
+): void {
+	const source = db
+		.select()
+		.from(monthlyBudgets)
+		.where(
+			and(
+				eq(monthlyBudgets.familyId, familyId),
+				eq(monthlyBudgets.year, sourceYear),
+				eq(monthlyBudgets.month, sourceMonth)
+			)
+		)
+		.get();
+
+	if (!source) {
+		throw new Error('Source month not found');
+	}
+
+	const sourceMemberBudget = db
+		.select()
+		.from(memberBudgets)
+		.where(and(eq(memberBudgets.monthlyBudgetId, source.id), eq(memberBudgets.userId, userId)))
+		.get();
+
+	if (!sourceMemberBudget) {
+		throw new Error('No budget data for this user in source month');
+	}
+
+	const targetMemberBudget = db
+		.select()
+		.from(memberBudgets)
+		.where(and(eq(memberBudgets.monthlyBudgetId, targetBudgetId), eq(memberBudgets.userId, userId)))
+		.get();
+
+	if (!targetMemberBudget) {
+		throw new Error('No budget found for this user in current month');
+	}
+
+	const sourceItems = db
+		.select()
+		.from(budgetItems)
+		.where(eq(budgetItems.memberBudgetId, sourceMemberBudget.id))
+		.all();
+
+	const sourceTagsByItem = new Map(
+		sourceItems.map((item) => [
+			item.id,
+			db.select().from(budgetItemTags).where(eq(budgetItemTags.budgetItemId, item.id)).all()
+		])
+	);
+
+	db.transaction((tx) => {
+		const targetItems = tx.select().from(budgetItems).where(eq(budgetItems.memberBudgetId, targetMemberBudget.id)).all();
+		for (const item of targetItems) {
+			tx.delete(budgetItemTags).where(eq(budgetItemTags.budgetItemId, item.id)).run();
+			tx.delete(budgetItems).where(eq(budgetItems.id, item.id)).run();
+		}
+
+		const now = new Date();
+		for (const item of sourceItems) {
+			const newItemId = ulid();
+			tx.insert(budgetItems)
+				.values({
+					id: newItemId,
+					memberBudgetId: targetMemberBudget.id,
+					name: item.name,
+					amount: item.amount,
+					type: item.type,
+					isRecurring: item.isRecurring,
+					sortOrder: item.sortOrder,
+					createdAt: now,
+					updatedAt: now
+				})
+				.run();
+
+			for (const sourceItemTag of sourceTagsByItem.get(item.id) ?? []) {
+				tx.insert(budgetItemTags).values({ budgetItemId: newItemId, tagId: sourceItemTag.tagId }).run();
+			}
+		}
+
+		tx.update(memberBudgets)
+			.set({ approved: false, approvedAt: null })
+			.where(eq(memberBudgets.id, targetMemberBudget.id))
+			.run();
+	});
+}
+
 export function loadBudgetData(budgetId: string) {
 	const budget = db.select().from(monthlyBudgets).where(eq(monthlyBudgets.id, budgetId)).get();
 	if (!budget) {

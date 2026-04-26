@@ -102,6 +102,8 @@
 	"calculate_equalization": "Calculate equalization",
 	"reminder_subject": "Reminder: Fill in your budget for {month} {year}",
 	"reminder_body": "Hi {name}! You have not approved your budget for {month} {year} yet. Click here to complete it.",
+	"copy_from_month_confirm": "This will replace all your existing budget items. Do you want to continue?",
+	"confirm_copy": "Yes, copy",
 	"no_family": "You do not belong to a family yet",
 	"no_family_description": "Create a new family or join an existing one via an invite link"
 }

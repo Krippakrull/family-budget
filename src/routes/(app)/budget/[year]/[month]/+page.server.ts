@@ -1,10 +1,10 @@
 import { env } from '$env/dynamic/private';
-import { fail } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
 import { and, eq } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import type { Actions, PageServerLoad } from './$types';
 import { parseCurrencyInput } from '$lib/currency.js';
-import { copyFromMonth, createMonthFromScratch, ensureMemberBudget, getOrCreateMonthlyBudget, loadBudgetData } from '$lib/server/budget';
+import { copyFromMonth, createMonthFromScratch, ensureMemberBudget, getOrCreateMonthlyBudget, loadBudgetData, replaceFromMonth } from '$lib/server/budget';
 import { db } from '$lib/server/db';
 import { sendApprovalSummaryEmail } from '$lib/server/email';
 import {
@@ -20,7 +20,29 @@ import {
 	users
 } from '$lib/server/db/schema';
 
-export const load: PageServerLoad = async ({ params, locals }) => {
+function parseSourceMonth(value: FormDataEntryValue | string | null): { year: number; month: number } | null {
+	const rawValue = value?.toString() ?? '';
+	const match = /^(\d{4})-(\d{1,2})$/.exec(rawValue);
+	if (!match) return null;
+
+	const year = Number.parseInt(match[1], 10);
+	const month = Number.parseInt(match[2], 10);
+	if (Number.isNaN(year) || Number.isNaN(month) || month < 1 || month > 12) return null;
+
+	return { year, month };
+}
+
+function hasSourceMonth(familyId: string, year: number, month: number): boolean {
+	const source = db
+		.select({ id: monthlyBudgets.id })
+		.from(monthlyBudgets)
+		.where(and(eq(monthlyBudgets.familyId, familyId), eq(monthlyBudgets.year, year), eq(monthlyBudgets.month, month)))
+		.get();
+
+	return source !== undefined;
+}
+
+export const load: PageServerLoad = async ({ params, locals, url }) => {
 	const user = locals.user;
 	if (!user?.familyId) {
 		return { budget: null, needsFamily: true };
@@ -32,6 +54,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	if (Number.isNaN(year) || Number.isNaN(month) || month < 1 || month > 12) {
 		return { budget: null, invalidDate: true };
 	}
+
+	const needsConfirm = url.searchParams.has('copyConfirm');
+	const confirmSource = parseSourceMonth(url.searchParams.get('sourceMonth'));
 
 	const budget = getOrCreateMonthlyBudget(user.familyId, year, month);
 	if (!budget) {
@@ -48,15 +73,31 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const data = loadBudgetData(budget.id);
 	const familyTags = db.select().from(tags).where(eq(tags.familyId, user.familyId)).all();
 	const family = db.select().from(families).where(eq(families.id, user.familyId)).get();
+	const availableMonths = db
+		.select({ year: monthlyBudgets.year, month: monthlyBudgets.month })
+		.from(monthlyBudgets)
+		.where(eq(monthlyBudgets.familyId, user.familyId))
+		.all();
+	const copyAvailableMonths = availableMonths.filter((option) => option.year !== year || option.month !== month);
+
+	const validConfirm =
+		needsConfirm &&
+		confirmSource !== null &&
+		(confirmSource.year !== year || confirmSource.month !== month) &&
+		hasSourceMonth(user.familyId, confirmSource.year, confirmSource.month);
 
 	return {
 		...data,
 		familyTags,
+		availableMonths,
+		copyAvailableMonths,
 		equalizationMode: family?.equalizationMode ?? 'equal',
 		year,
 		month,
 		currentUserId: user.id,
-		currentLanguage: user.language
+		currentLanguage: user.language,
+		needsConfirm: validConfirm || undefined,
+		sourceMonth: validConfirm && confirmSource ? `${confirmSource.year}-${confirmSource.month}` : undefined
 	};
 };
 
@@ -74,19 +115,54 @@ export const actions: Actions = {
 		if (!user?.familyId) return fail(400, { error: 'no_family' });
 
 		const data = await request.formData();
-		const sourceYear = Number.parseInt(data.get('sourceYear')?.toString() ?? '', 10);
-		const sourceMonth = Number.parseInt(data.get('sourceMonth')?.toString() ?? '', 10);
-		if (Number.isNaN(sourceYear) || Number.isNaN(sourceMonth)) return fail(400, { error: 'invalid_source' });
+		const source = parseSourceMonth(data.get('sourceMonth'));
+		if (!source || !hasSourceMonth(user.familyId, source.year, source.month)) return fail(400, { error: 'invalid_source' });
 
 		copyFromMonth(
 			user.familyId,
 			Number.parseInt(params.year, 10),
 			Number.parseInt(params.month, 10),
-			sourceYear,
-			sourceMonth
+			source.year,
+			source.month
 		);
 
 		return { created: true };
+	},
+
+	copyFromMonthExisting: async ({ params, request, locals, url }) => {
+		const user = locals.user;
+		if (!user?.familyId) return fail(400, { error: 'no_family' });
+
+		const formData = await request.formData();
+		const source = parseSourceMonth(formData.get('sourceMonth'));
+		if (!source || !hasSourceMonth(user.familyId, source.year, source.month)) return fail(400, { error: 'invalid_source' });
+
+		const targetYear = Number.parseInt(params.year, 10);
+		const targetMonth = Number.parseInt(params.month, 10);
+		if (source.year === targetYear && source.month === targetMonth) return fail(400, { error: 'invalid_source' });
+
+		const targetBudget = getOrCreateMonthlyBudget(user.familyId, targetYear, targetMonth);
+		if (!targetBudget) return fail(400, { error: 'no_budget' });
+
+		ensureMemberBudget(user.id, targetBudget.id);
+		const budgetData = loadBudgetData(targetBudget.id);
+		const currentMember = budgetData.members.find((m) => m.user.id === user.id);
+		if (currentMember?.memberBudget.approved) return fail(400, { error: 'budget_approved' });
+
+		const hasItems = currentMember !== undefined && currentMember.items.length > 0;
+		const confirmed = formData.get('confirmed') === 'yes';
+
+		if (hasItems && !confirmed) {
+			const dest = new URL(url);
+			dest.search = `?copyConfirm&sourceMonth=${source.year}-${source.month}`;
+			throw redirect(302, dest.pathname + dest.search);
+		}
+
+		replaceFromMonth(targetBudget.id, source.year, source.month, user.familyId, user.id);
+
+		const dest = new URL(url);
+		dest.search = '';
+		throw redirect(302, dest.pathname);
 	},
 
 	addItem: async ({ request, locals }) => {

@@ -102,6 +102,8 @@
 	"calculate_equalization": "Beräkna utjämning",
 	"reminder_subject": "Påminnelse: Fyll i din budget för {month} {year}",
 	"reminder_body": "Hej {name}! Du har inte godkänt din budget för {month} {year} ännu. Klicka här för att fylla i den.",
+	"copy_from_month_confirm": "Detta kommer att ersätta alla dina befintliga budgetposter. Vill du fortsätta?",
+	"confirm_copy": "Ja, kopiera",
 	"no_family": "Du tillhör ingen familj ännu",
 	"no_family_description": "Skapa en ny familj eller gå med i en befintlig via en inbjudningslänk"
 }

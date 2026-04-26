@@ -64,6 +64,29 @@
 		});
 	});
 
+	const monthNames = $derived([
+		m.month_january(),
+		m.month_february(),
+		m.month_march(),
+		m.month_april(),
+		m.month_may(),
+		m.month_june(),
+		m.month_july(),
+		m.month_august(),
+		m.month_september(),
+		m.month_october(),
+		m.month_november(),
+		m.month_december()
+	]);
+
+	const headerTitle = $derived(`${page.params.year} ${monthNames[Number(page.params.month) - 1]}`);
+
+	const needsConfirm = $derived(data.needsConfirm === true);
+
+	function formatMonthOption(option: { year: number; month: number }): string {
+		return `${option.year} ${monthNames[option.month - 1]}`;
+	}
+
 	function formatOren(value: number): string {
 		return new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK' }).format(value / 100);
 	}
@@ -72,8 +95,7 @@
 <div class="space-y-2">
 	<div class="flex items-center justify-between gap-2">
 		<div>
-			<h1 class="text-2xl font-semibold">{m.nav_budget()}</h1>
-			<p class="text-sm text-muted-foreground">{page.params.year}-{page.params.month}</p>
+			<h1 class="text-2xl font-semibold">{m.nav_budget()} {headerTitle}</h1>
 		</div>
 		<div class="flex items-center gap-2">
 			<Button variant="outline" size="sm" href={prevMonth}>←</Button>
@@ -108,16 +130,11 @@
 					<Button type="submit">{m.start_fresh()}</Button>
 				</form>
 
-				{#if data.availableMonths?.length > 0}
+				{#if (data.availableMonths ?? []).length > 0}
 					<form method="POST" action="?/copyFromMonth" use:enhance class="flex flex-wrap gap-2">
-						<select name="sourceYear" class="h-9 rounded-md border border-input bg-background px-2 text-sm">
-							{#each data.availableMonths as option}
-								<option value={option.year}>{option.year}</option>
-							{/each}
-						</select>
 						<select name="sourceMonth" class="h-9 rounded-md border border-input bg-background px-2 text-sm">
 							{#each data.availableMonths as option}
-								<option value={option.month}>{option.month}</option>
+								<option value={`${option.year}-${option.month}`}>{formatMonthOption(option)}</option>
 							{/each}
 						</select>
 						<Button type="submit" variant="secondary">{m.copy_from_month()}</Button>
@@ -149,5 +166,30 @@
 		</Card>
 
 		<EqualizationPanel members={memberBalances} mode={data.equalizationMode ?? 'equal'} />
+
+		{#if (data.copyAvailableMonths ?? []).length > 0}
+			<Card>
+				<CardHeader>
+					<CardTitle>{m.copy_from_month()}</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<form method="POST" action="?/copyFromMonthExisting" use:enhance class="flex flex-wrap gap-2 items-end">
+						{#if needsConfirm}
+							<input type="hidden" name="confirmed" value="yes" />
+							<input type="hidden" name="sourceMonth" value={data.sourceMonth} />
+							<p class="w-full text-sm text-muted-foreground">{m.copy_from_month_confirm()}</p>
+							<Button type="submit" variant="secondary">{m.confirm_copy()}</Button>
+						{:else}
+							<select name="sourceMonth" class="h-9 rounded-md border border-input bg-background px-2 text-sm">
+								{#each data.copyAvailableMonths as option}
+									<option value={`${option.year}-${option.month}`}>{formatMonthOption(option)}</option>
+								{/each}
+							</select>
+							<Button type="submit" variant="secondary">{m.copy_from_month()}</Button>
+						{/if}
+					</form>
+				</CardContent>
+			</Card>
+		{/if}
 	{/if}
 </div>
