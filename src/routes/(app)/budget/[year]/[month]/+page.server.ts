@@ -144,6 +144,19 @@ export const actions: Actions = {
 		const targetBudget = getOrCreateMonthlyBudget(user.familyId, targetYear, targetMonth);
 		if (!targetBudget) return fail(400, { error: 'no_budget' });
 
+		const sourceBudget = getOrCreateMonthlyBudget(user.familyId, source.year, source.month);
+		if (!sourceBudget) return fail(400, { error: 'invalid_source' });
+
+		const sourceMemberBudget = db
+			.select()
+			.from(memberBudgets)
+			.where(and(eq(memberBudgets.monthlyBudgetId, sourceBudget.id), eq(memberBudgets.userId, user.id)))
+			.get();
+
+		if (!sourceMemberBudget) {
+			return fail(400, { error: 'no_source_data' });
+		}
+
 		ensureMemberBudget(user.id, targetBudget.id);
 		const budgetData = loadBudgetData(targetBudget.id);
 		const currentMember = budgetData.members.find((m) => m.user.id === user.id);

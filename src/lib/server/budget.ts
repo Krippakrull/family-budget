@@ -34,60 +34,78 @@ export function ensureMemberBudget(userId: string, monthlyBudgetId: string): voi
 }
 
 export function createMonthFromScratch(familyId: string, year: number, month: number): string {
-	const now = new Date();
-	const budgetId = ulid();
+	return db.transaction((tx) => {
+		const existing = tx
+			.select()
+			.from(monthlyBudgets)
+			.where(
+				and(
+					eq(monthlyBudgets.familyId, familyId),
+					eq(monthlyBudgets.year, year),
+					eq(monthlyBudgets.month, month)
+				)
+			)
+			.get();
 
-	db.insert(monthlyBudgets).values({
-		id: budgetId,
-		familyId,
-		year,
-		month,
-		createdAt: now
-	}).run();
+		if (existing) {
+			return existing.id;
+		}
 
-	const members = db.select().from(users).where(eq(users.familyId, familyId)).all();
+		const now = new Date();
+		const budgetId = ulid();
 
-	for (const member of members) {
-		const memberBudgetId = ulid();
-		db.insert(memberBudgets).values({
-			id: memberBudgetId,
-			monthlyBudgetId: budgetId,
-			userId: member.id
+		tx.insert(monthlyBudgets).values({
+			id: budgetId,
+			familyId,
+			year,
+			month,
+			createdAt: now
 		}).run();
 
-		const templates = db
-			.select()
-			.from(recurringTemplates)
-			.where(and(eq(recurringTemplates.userId, member.id), eq(recurringTemplates.familyId, familyId)))
-			.all();
+		const members = tx.select().from(users).where(eq(users.familyId, familyId)).all();
 
-		for (const template of templates) {
-			const itemId = ulid();
-			db.insert(budgetItems).values({
-				id: itemId,
-				memberBudgetId,
-				name: template.name,
-				amount: template.amount,
-				type: template.type,
-				isRecurring: true,
-				sortOrder: 0,
-				createdAt: now,
-				updatedAt: now
+		for (const member of members) {
+			const memberBudgetId = ulid();
+			tx.insert(memberBudgets).values({
+				id: memberBudgetId,
+				monthlyBudgetId: budgetId,
+				userId: member.id
 			}).run();
 
-			const templateTags = db
+			const templates = tx
 				.select()
-				.from(recurringTemplateTags)
-				.where(eq(recurringTemplateTags.recurringTemplateId, template.id))
+				.from(recurringTemplates)
+				.where(and(eq(recurringTemplates.userId, member.id), eq(recurringTemplates.familyId, familyId)))
 				.all();
 
-			for (const templateTag of templateTags) {
-				db.insert(budgetItemTags).values({ budgetItemId: itemId, tagId: templateTag.tagId }).run();
+			for (const template of templates) {
+				const itemId = ulid();
+				tx.insert(budgetItems).values({
+					id: itemId,
+					memberBudgetId,
+					name: template.name,
+					amount: template.amount,
+					type: template.type,
+					isRecurring: true,
+					sortOrder: 0,
+					createdAt: now,
+					updatedAt: now
+				}).run();
+
+				const templateTags = tx
+					.select()
+					.from(recurringTemplateTags)
+					.where(eq(recurringTemplateTags.recurringTemplateId, template.id))
+					.all();
+
+				for (const templateTag of templateTags) {
+					tx.insert(budgetItemTags).values({ budgetItemId: itemId, tagId: templateTag.tagId }).run();
+				}
 			}
 		}
-	}
 
-	return budgetId;
+		return budgetId;
+	}, { behavior: 'immediate' });
 }
 
 export function copyFromMonth(
@@ -97,71 +115,131 @@ export function copyFromMonth(
 	sourceYear: number,
 	sourceMonth: number
 ): string {
-	const source = db
-		.select()
-		.from(monthlyBudgets)
-		.where(
-			and(
-				eq(monthlyBudgets.familyId, familyId),
-				eq(monthlyBudgets.year, sourceYear),
-				eq(monthlyBudgets.month, sourceMonth)
+	return db.transaction((tx) => {
+		const existing = tx
+			.select()
+			.from(monthlyBudgets)
+			.where(
+				and(
+					eq(monthlyBudgets.familyId, familyId),
+					eq(monthlyBudgets.year, targetYear),
+					eq(monthlyBudgets.month, targetMonth)
+				)
 			)
-		)
-		.get();
+			.get();
 
-	if (!source) {
-		throw new Error('Source month not found');
-	}
+		if (existing) {
+			return existing.id;
+		}
 
-	const now = new Date();
-	const targetBudgetId = ulid();
+		const source = tx
+			.select()
+			.from(monthlyBudgets)
+			.where(
+				and(
+					eq(monthlyBudgets.familyId, familyId),
+					eq(monthlyBudgets.year, sourceYear),
+					eq(monthlyBudgets.month, sourceMonth)
+				)
+			)
+			.get();
 
-	db.insert(monthlyBudgets).values({
-		id: targetBudgetId,
-		familyId,
-		year: targetYear,
-		month: targetMonth,
-		createdAt: now
-	}).run();
+		if (!source) {
+			throw new Error('Source month not found');
+		}
 
-	const sourceMemberBudgets = db.select().from(memberBudgets).where(eq(memberBudgets.monthlyBudgetId, source.id)).all();
+		const now = new Date();
+		const targetBudgetId = ulid();
 
-	for (const sourceMemberBudget of sourceMemberBudgets) {
-		const newMemberBudgetId = ulid();
-		db.insert(memberBudgets).values({
-			id: newMemberBudgetId,
-			monthlyBudgetId: targetBudgetId,
-			userId: sourceMemberBudget.userId
+		tx.insert(monthlyBudgets).values({
+			id: targetBudgetId,
+			familyId,
+			year: targetYear,
+			month: targetMonth,
+			createdAt: now
 		}).run();
 
-		const sourceItems = db.select().from(budgetItems).where(eq(budgetItems.memberBudgetId, sourceMemberBudget.id)).all();
-		for (const item of sourceItems) {
-			const newItemId = ulid();
-			db.insert(budgetItems).values({
-				id: newItemId,
-				memberBudgetId: newMemberBudgetId,
-				name: item.name,
-				amount: item.amount,
-				type: item.type,
-				isRecurring: item.isRecurring,
-				sortOrder: item.sortOrder,
-				createdAt: now,
-				updatedAt: now
+		// Fetch all current family members
+		const currentMembers = tx.select().from(users).where(eq(users.familyId, familyId)).all();
+
+		for (const member of currentMembers) {
+			const newMemberBudgetId = ulid();
+			tx.insert(memberBudgets).values({
+				id: newMemberBudgetId,
+				monthlyBudgetId: targetBudgetId,
+				userId: member.id
 			}).run();
 
-			const sourceItemTags = db
+			// Look up if this member had a budget in the source month
+			const sourceMemberBudget = tx
 				.select()
-				.from(budgetItemTags)
-				.where(eq(budgetItemTags.budgetItemId, item.id))
-				.all();
+				.from(memberBudgets)
+				.where(and(eq(memberBudgets.monthlyBudgetId, source.id), eq(memberBudgets.userId, member.id)))
+				.get();
 
-			for (const sourceItemTag of sourceItemTags) {
-				db.insert(budgetItemTags).values({ budgetItemId: newItemId, tagId: sourceItemTag.tagId }).run();
+			if (sourceMemberBudget) {
+				const sourceItems = tx.select().from(budgetItems).where(eq(budgetItems.memberBudgetId, sourceMemberBudget.id)).all();
+				for (const item of sourceItems) {
+					const newItemId = ulid();
+					tx.insert(budgetItems).values({
+						id: newItemId,
+						memberBudgetId: newMemberBudgetId,
+						name: item.name,
+						amount: item.amount,
+						type: item.type,
+						isRecurring: item.isRecurring,
+						sortOrder: item.sortOrder,
+						createdAt: now,
+						updatedAt: now
+					}).run();
+
+					const sourceItemTags = tx
+						.select()
+						.from(budgetItemTags)
+						.where(eq(budgetItemTags.budgetItemId, item.id))
+						.all();
+
+					for (const sourceItemTag of sourceItemTags) {
+						tx.insert(budgetItemTags).values({ budgetItemId: newItemId, tagId: sourceItemTag.tagId }).run();
+					}
+				}
+			} else {
+				// Member is new or didn't have budget last month: populate recurring templates
+				const templates = tx
+					.select()
+					.from(recurringTemplates)
+					.where(and(eq(recurringTemplates.userId, member.id), eq(recurringTemplates.familyId, familyId)))
+					.all();
+
+				for (const template of templates) {
+					const itemId = ulid();
+					tx.insert(budgetItems).values({
+						id: itemId,
+						memberBudgetId: newMemberBudgetId,
+						name: template.name,
+						amount: template.amount,
+						type: template.type,
+						isRecurring: true,
+						sortOrder: 0,
+						createdAt: now,
+						updatedAt: now
+					}).run();
+
+					const templateTags = tx
+						.select()
+						.from(recurringTemplateTags)
+						.where(eq(recurringTemplateTags.recurringTemplateId, template.id))
+						.all();
+
+					for (const templateTag of templateTags) {
+						tx.insert(budgetItemTags).values({ budgetItemId: itemId, tagId: templateTag.tagId }).run();
+					}
+				}
 			}
 		}
-	}
 
-	return targetBudgetId;
+		return targetBudgetId;
+	}, { behavior: 'immediate' });
 }
 
 export function replaceFromMonth(
